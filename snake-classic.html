@@ -3,20 +3,20 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Snake SPA — No Backend</title>
+  <title>Ruiz-Martinez Snake</title>
   <style>
     :root { --bg: #0e0f13; --fg: #e6e6e6; --accent: #66e59b; --accent2:#6cc6ff; }
     html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Arial, "Noto Sans"; }
-    #app { height: 100%; display: grid; grid-template-rows: auto 1fr auto; }
-    header, footer { display:flex; align-items:center; justify-content:space-between; padding: 10px 14px; }
+    #app { height: 100%; display: grid; grid-template-rows: auto auto 1fr auto; }
+    header, footer { display:flex; align-items:center; justify-content:space-between; padding: 8px 12px; }
     header h1 { font-size: 16px; margin: 0; font-weight: 600; letter-spacing:.3px }
     header .btns { display:flex; gap:8px }
     button, select { background:#1a1d25; color:var(--fg); border:1px solid #2a2f3a; padding:8px 10px; border-radius:10px; cursor:pointer }
     button:hover { border-color:#3b4352 }
     .accent { color: var(--accent) }
-    #panel { display:flex; gap:12px; align-items:center; flex-wrap:wrap }
+    #panel { display:flex; gap:8px; align-items:center; flex-wrap:wrap }
     #canvasWrap { position: relative; display:grid; place-items:center; height: 100%; }
-    canvas { background:#111418; border:1px solid #272e3a; border-radius:16px; max-width: 96vw; max-height: 70vh; image-rendering: pixelated }
+    canvas { background:#111418; border:1px solid #272e3a; border-radius:16px; max-width: 100vw; max-height: 85vh; image-rendering: pixelated }
     #overlay { position:absolute; inset:0; display:grid; place-items:center; pointer-events:none }
     .card { background: rgba(17,20,24,.8); padding:16px 20px; border:1px solid #303949; border-radius:14px; text-align:center }
     .small { font-size:12px; opacity:.8 }
@@ -25,7 +25,7 @@
 <body>
 <div id="app">
   <header>
-    <h1>Snake <span class="accent">SPA</span> — single page, no backend</h1>
+    <h1><span class="accent">Ruiz-Martinez</span> Snake</h1>
     <div class="btns">
       <button id="btnStart">Start / Pause</button>
       <button id="btnReset" title="Reset score & game">Reset</button>
@@ -54,7 +54,7 @@
   </div>
 
   <div id="canvasWrap">
-    <canvas id="game" width="840" height="600"></canvas>
+    <canvas id="game" width="1050" height="750"></canvas>
     <div id="overlay"></div>
   </div>
 
@@ -69,6 +69,7 @@
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
   const overlay = document.getElementById('overlay');
+  const canvasWrapEl = document.getElementById('canvasWrap');
   const scoreEl = document.getElementById('score');
   const bestEl = document.getElementById('best');
   const btnStart = document.getElementById('btnStart');
@@ -235,13 +236,15 @@
 
   // Main loop
   function frame(ts) {
-    // resize canvas to fit viewport while preserving aspect
-    const maxW = Math.min(window.innerWidth * 0.96, 1200);
-    const maxH = Math.min(window.innerHeight * 0.72, 900);
-    const ratio = canvas.width / canvas.height; // 840/600
-    let w = maxW, h = Math.floor(maxW / ratio);
+    // Fit canvas to available space inside canvasWrap while preserving aspect
+    const maxW = canvasWrapEl.clientWidth;
+    const maxH = canvasWrapEl.clientHeight;
+    const ratio = canvas.width / canvas.height; // 1050/750
+    let w = maxW;
+    let h = Math.floor(maxW / ratio);
     if (h > maxH) { h = maxH; w = Math.floor(maxH * ratio); }
-    canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
 
     // draw
     ctx.save();
