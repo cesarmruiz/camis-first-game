@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Snake SPA — No Backend</title>
+  <style>
+    :root { --bg: #0e0f13; --fg: #e6e6e6; --accent: #66e59b; --accent2:#6cc6ff; }
+    html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Arial, "Noto Sans"; }
+    #app { height: 100%; display: grid; grid-template-rows: auto 1fr auto; }
+    header, footer { display:flex; align-items:center; justify-content:space-between; padding: 10px 14px; }
+    header h1 { font-size: 16px; margin: 0; font-weight: 600; letter-spacing:.3px }
+    header .btns { display:flex; gap:8px }
+    button, select { background:#1a1d25; color:var(--fg); border:1px solid #2a2f3a; padding:8px 10px; border-radius:10px; cursor:pointer }
+    button:hover { border-color:#3b4352 }
+    .accent { color: var(--accent) }
+    #panel { display:flex; gap:12px; align-items:center; flex-wrap:wrap }
+    #canvasWrap { position: relative; display:grid; place-items:center; height: 100%; }
+    canvas { background:#111418; border:1px solid #272e3a; border-radius:16px; max-width: 96vw; max-height: 70vh; image-rendering: pixelated }
+    #overlay { position:absolute; inset:0; display:grid; place-items:center; pointer-events:none }
+    .card { background: rgba(17,20,24,.8); padding:16px 20px; border:1px solid #303949; border-radius:14px; text-align:center }
+    .small { font-size:12px; opacity:.8 }
+  </style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>Snake <span class="accent">SPA</span> — single page, no backend</h1>
+    <div class="btns">
+      <button id="btnStart">Start / Pause</button>
+      <button id="btnReset" title="Reset score & game">Reset</button>
+    </div>
+  </header>
+
+  <div id="panel">
+    <div>Speed: <select id="speed">
+      <option value="8">Slow</option>
+      <option value="12" selected>Normal</option>
+      <option value="16">Fast</option>
+      <option value="22">Insane</option>
+    </select></div>
+    <div>Mode: <select id="mode">
+      <option value="wrap" selected>Wrap</option>
+      <option value="walls">Walls</option>
+    </select></div>
+    <div>Grid: <select id="grid">
+      <option value="24">24</option>
+      <option value="28" selected>28</option>
+      <option value="32">32</option>
+      <option value="36">36</option>
+    </select></div>
+    <div>Score: <b id="score">0</b> — Best: <b id="best">0</b></div>
+  </div>
+
+  <div id="canvasWrap">
+    <canvas id="game" width="840" height="600"></canvas>
+    <div id="overlay"></div>
+  </div>
+
+  <footer>
+    <div class="small">Controls: Arrow keys / WASD · Mobile: swipe</div>
+    <div class="small">Saved locally (LocalStorage). Deployable as static site / GitHub Pages.</div>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const overlay = document.getElementById('overlay');
+  const scoreEl = document.getElementById('score');
+  const bestEl = document.getElementById('best');
+  const btnStart = document.getElementById('btnStart');
+  const btnReset = document.getElementById('btnReset');
+  const modeSel = document.getElementById('mode');
+  const speedSel = document.getElementById('speed');
+  const gridSel = document.getElementById('grid');
+
+  // Persistent best score
+  const BEST_KEY = 'snake_best_v1';
+  let best = Number(localStorage.getItem(BEST_KEY) || 0);
+  bestEl.textContent = best;
+
+  // Game state
+  let cols = 28, rows = 20, cell = 30; // derived from canvas size
+  let tickPerSec = 12; // game speed
+  let wrapMode = true; // true = wrap, false = walls
+
+  function resizeGrid() {
+    const desiredCols = Number(gridSel.value);
+    cols = desiredCols;
+    cell = Math.floor(Math.min(canvas.width / cols, canvas.height / Math.floor(canvas.height / (canvas.width/cols))));
+    rows = Math.floor(canvas.height / cell);
+  }
+
+  function reset() {
+    resizeGrid();
+    snake = [{x: Math.floor(cols/2), y: Math.floor(rows/2)}];
+    dir = {x: 1, y: 0};
+    pendingDir = dir;
+    grow = 3;
+    score = 0;
+    placeApple();
+    gameOver = false;
+    lastTick = 0;
+    drawSplash('Paused — press Start');
+    updateHUD();
+  }
+
+  let snake = [];
+  let dir = {x:1, y:0};
+  let pendingDir = dir;
+  let apple = {x:0, y:0};
+  let grow = 0;
+  let score = 0;
+  let gameOver = false;
+  let lastTick = 0;
+
+  function placeApple() {
+    do {
+      apple.x = Math.floor(Math.random() * cols);
+      apple.y = Math.floor(Math.random() * rows);
+    } while (snake.some(s => s.x === apple.x && s.y === apple.y));
+  }
+
+  function updateHUD() { scoreEl.textContent = score; bestEl.textContent = best; }
+
+  function drawCell(x, y, color) {
+    ctx.fillStyle = color;
+    ctx.fillRect(x*cell, y*cell, cell, cell);
+  }
+
+  function drawGrid() {
+    ctx.fillStyle = '#111418'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.strokeStyle = '#1f2531'; ctx.lineWidth = 1;
+    for (let x=0; x<=cols; x++) { ctx.beginPath(); ctx.moveTo(x*cell+.5,0); ctx.lineTo(x*cell+.5,rows*cell); ctx.stroke(); }
+    for (let y=0; y<=rows; y++) { ctx.beginPath(); ctx.moveTo(0,y*cell+.5); ctx.lineTo(cols*cell,y*cell+.5); ctx.stroke(); }
+  }
+
+  function drawSnake() {
+    for (let i=0;i<snake.length;i++) {
+      const s = snake[i];
+      const t = i === 0 ? '#66e59b' : '#44b477';
+      drawCell(s.x, s.y, t);
+    }
+  }
+
+  function drawApple() { drawCell(apple.x, apple.y, '#6cc6ff'); }
+
+  function drawSplash(text) {
+    overlay.innerHTML = `<div class="card"><div>${text}</div></div>`;
+  }
+
+  function hideSplash() { overlay.innerHTML = ''; }
+
+  function tick() {
+    if (gamePaused || gameOver) return;
+    // apply pending direction if not reversing
+    if (pendingDir.x !== -dir.x || pendingDir.y !== -dir.y) dir = pendingDir;
+
+    // new head
+    let nx = snake[0].x + dir.x; let ny = snake[0].y + dir.y;
+    if (wrapMode) {
+      nx = (nx + cols) % cols; ny = (ny + rows) % rows;
+    } else {
+      if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) return doGameOver();
+    }
+
+    // collision with self
+    if (snake.some(s => s.x === nx && s.y === ny)) return doGameOver();
+
+    snake.unshift({x:nx, y:ny});
+    if (nx === apple.x && ny === apple.y) {
+      score += 10; best = Math.max(best, score); localStorage.setItem(BEST_KEY, String(best));
+      grow += 1; placeApple(); updateHUD();
+    }
+    if (grow > 0) { grow--; } else { snake.pop(); }
+  }
+
+  function doGameOver() {
+    gameOver = true; gamePaused = true;
+    drawSplash(`Game Over — score ${score}. Press Reset or Start.`);
+  }
+
+  // Input
+  const keys = new Set();
+  addEventListener('keydown', (e) => {
+    keys.add(e.key.toLowerCase());
+    switch (e.key.toLowerCase()) {
+      case 'arrowup': case 'w': pendingDir = {x:0,y:-1}; break;
+      case 'arrowdown': case 's': pendingDir = {x:0,y:1}; break;
+      case 'arrowleft': case 'a': pendingDir = {x:-1,y:0}; break;
+      case 'arrowright': case 'd': pendingDir = {x:1,y:0}; break;
+      case ' ': togglePause(); break;
+    }
+  });
+  addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
+
+  // Touch swipe
+  let touchStart = null;
+  canvas.addEventListener('touchstart', (e) => { const t=e.changedTouches[0]; touchStart = {x:t.clientX, y:t.clientY}; });
+  canvas.addEventListener('touchend', (e) => {
+    if (!touchStart) return; const t=e.changedTouches[0]; const dx=t.clientX - touchStart.x; const dy=t.clientY - touchStart.y;
+    if (Math.abs(dx) > Math.abs(dy)) pendingDir = {x: dx>0?1:-1, y:0}; else pendingDir = {x:0, y: dy>0?1:-1};
+    touchStart = null;
+  });
+
+  // UI
+  let gamePaused = true; // start paused
+  btnStart.onclick = () => togglePause();
+  btnReset.onclick = () => reset();
+  modeSel.onchange = () => { wrapMode = modeSel.value === 'wrap'; };
+  speedSel.onchange = () => { tickPerSec = Number(speedSel.value); };
+  gridSel.onchange = () => { reset(); };
+
+  function togglePause() {
+    if (gameOver) reset();
+    gamePaused = !gamePaused; gamePaused ? drawSplash('Paused') : hideSplash();
+  }
+
+  // Main loop
+  function frame(ts) {
+    // resize canvas to fit viewport while preserving aspect
+    const maxW = Math.min(window.innerWidth * 0.96, 1200);
+    const maxH = Math.min(window.innerHeight * 0.72, 900);
+    const ratio = canvas.width / canvas.height; // 840/600
+    let w = maxW, h = Math.floor(maxW / ratio);
+    if (h > maxH) { h = maxH; w = Math.floor(maxH * ratio); }
+    canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+
+    // draw
+    ctx.save();
+    drawGrid();
+    drawSnake();
+    drawApple();
+    ctx.restore();
+
+    // timing
+    const msPerTick = 1000 / tickPerSec;
+    if (!gamePaused && !gameOver) {
+      if (!lastTick) lastTick = ts;
+      if (ts - lastTick >= msPerTick) { lastTick = ts; tick(); }
+    }
+
+    requestAnimationFrame(frame);
+  }
+
+  // Init
+  reset();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
