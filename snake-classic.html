@@ -111,6 +111,13 @@
   let dir = {x:1, y:0};
   let pendingDir = dir;
   let apple = {x:0, y:0};
+  const appleImageSources = ['pict1.gif', 'pict2.gif', 'pict3.gif', 'pict4.gif'];
+  const appleImages = appleImageSources.map(src => {
+    const img = new Image();
+    img.src = src;
+    return img;
+  });
+  let appleSprite = null;
   let grow = 0;
   let score = 0;
   let gameOver = false;
@@ -121,6 +128,7 @@
       apple.x = Math.floor(Math.random() * cols);
       apple.y = Math.floor(Math.random() * rows);
     } while (snake.some(s => s.x === apple.x && s.y === apple.y));
+    appleSprite = appleImages[Math.floor(Math.random() * appleImages.length)];
   }
 
   function updateHUD() { scoreEl.textContent = score; bestEl.textContent = best; }
@@ -145,7 +153,13 @@
     }
   }
 
-  function drawApple() { drawCell(apple.x, apple.y, '#6cc6ff'); }
+  function drawApple() {
+    if (appleSprite && appleSprite.complete && appleSprite.naturalWidth > 0) {
+      ctx.drawImage(appleSprite, apple.x * cell, apple.y * cell, cell, cell);
+    } else {
+      drawCell(apple.x, apple.y, '#6cc6ff');
+    }
+  }
 
   function drawSplash(text) {
     overlay.innerHTML = `<div class="card"><div>${text}</div></div>`;
