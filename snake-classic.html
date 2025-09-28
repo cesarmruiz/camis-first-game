@@ -82,6 +82,7 @@
           <option value="32">32</option>
           <option value="36">36</option>
         </select></div>
+        <div><label><input type="checkbox" id="tiltCtrl"> Tilt controls (mobile)</label></div>
         
       </div>
     </div>
@@ -316,6 +317,73 @@
   modeSel.onchange = () => { wrapMode = modeSel.value === 'wrap'; gaEvent('mode_change', { mode: wrapMode ? 'wrap' : 'walls' }); };
   speedSel.onchange = () => { tickPerSec = Number(speedSel.value); gaEvent('speed_change', { value: tickPerSec }); };
   gridSel.onchange = () => { gaEvent('grid_change', { value: Number(gridSel.value) }); reset(); };
+  
+  // Tilt controls (mobile)
+  const tiltChk = document.getElementById('tiltCtrl');
+  let tiltEnabled = false;
+  let lastTiltAt = 0;
+  let lastTiltDir = { x: 0, y: 0 };
+  const TILT_DEG = 15; // sensitivity threshold in degrees
+  const TILT_INTERVAL = 120; // ms between direction updates
+
+  async function ensureOrientationPermission() {
+    try {
+      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        const res = await DeviceOrientationEvent.requestPermission();
+        return res === 'granted';
+      }
+    } catch (_) {}
+    return true;
+  }
+
+  function pickTiltDirection(beta, gamma) {
+    const absB = Math.abs(beta);
+    const absG = Math.abs(gamma);
+    if (absG >= absB && absG > TILT_DEG) {
+      return gamma > 0 ? { x: 1, y: 0 } : { x: -1, y: 0 };
+    }
+    if (absB > TILT_DEG) {
+      return beta < 0 ? { x: 0, y: -1 } : { x: 0, y: 1 };
+    }
+    return null;
+  }
+
+  function onDeviceOrientation(e) {
+    if (!tiltEnabled) return;
+    const now = performance.now();
+    if (now - lastTiltAt < TILT_INTERVAL) return;
+    const beta = e.beta ?? 0;  // front/back (negative = forward)
+    const gamma = e.gamma ?? 0; // left/right
+    const d = pickTiltDirection(beta, gamma);
+    if (!d) return;
+    if (d.x === lastTiltDir.x && d.y === lastTiltDir.y) return;
+    pendingDir = d;
+    lastTiltDir = d;
+    lastTiltAt = now;
+  }
+
+  async function setTiltEnabled(on) {
+    if (on) {
+      const ok = await ensureOrientationPermission();
+      if (!ok) { if (tiltChk) tiltChk.checked = false; return; }
+      if (!tiltEnabled) {
+        window.addEventListener('deviceorientation', onDeviceOrientation, { passive: true });
+        tiltEnabled = true;
+        gaEvent('tilt_enabled');
+      }
+    } else {
+      if (tiltEnabled) {
+        window.removeEventListener('deviceorientation', onDeviceOrientation);
+        tiltEnabled = false;
+        lastTiltDir = { x: 0, y: 0 };
+        gaEvent('tilt_disabled');
+      }
+    }
+  }
+
+  if (tiltChk) {
+    tiltChk.addEventListener('change', () => setTiltEnabled(tiltChk.checked));
+  }
 
   function togglePause() {
     if (gameOver) reset();
