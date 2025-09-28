@@ -32,6 +32,9 @@
     header { position: relative }
     header h1 { font-size: 16px; margin: 0; font-weight: 600; letter-spacing:.3px }
     header .btns { display:flex; gap:8px; position:relative }
+    /* Settings icon button fills header height */
+    .icon-btn { padding:0; display:inline-flex; align-items:center; justify-content:center }
+    .icon-btn img { display:block; height:100%; aspect-ratio:1/1 }
     button, select { background:#1a1d25; color:var(--fg); border:1px solid #2a2f3a; padding:8px 10px; border-radius:10px; cursor:pointer }
     button:hover { border-color:#3b4352 }
     .accent { color: var(--accent) }
@@ -57,9 +60,9 @@
     <h1><span class="accent">Ruiz-Martinez</span> Snake</h1>
     <div class="header-center">Score: <b id="score" class="score">0</b> — Best: <b id="best" class="best">0</b></div>
     <div class="btns">
-      <button id="btnSettings" title="Open settings">Settings</button>
-      <button id="btnStart">Start / Pause</button>
-      <button id="btnReset" title="Reset score & game">Reset</button>
+      <button id="btnSettings" class="icon-btn" title="Open settings"><img src="settings.png" alt="Settings"></button>
+      <button id="btnStart" class="icon-btn" title="Start / Pause"><img src="start-pause.png" alt="Start / Pause"></button>
+      <button id="btnReset" class="icon-btn" title="Reset"><img src="reset.png" alt="Reset"></button>
       <!-- Settings popover (formerly full-width panel) -->
       <div id="panel" class="card" hidden>
         <div>Speed: <select id="speed">
@@ -102,6 +105,24 @@
   setVh();
   addEventListener('resize', setVh);
   addEventListener('orientationchange', setVh);
+
+  // Size icon buttons to match header inner height
+  function sizeHeaderIcons() {
+    const headerEl = document.querySelector('header');
+    const btns = [
+      document.getElementById('btnSettings'),
+      document.getElementById('btnStart'),
+      document.getElementById('btnReset')
+    ];
+    if (!headerEl) return;
+    const cs = getComputedStyle(headerEl);
+    const padV = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+    const target = Math.max(0, headerEl.clientHeight - padV);
+    if (target > 0) btns.forEach(b => { if (b) b.style.height = target + 'px'; });
+  }
+  sizeHeaderIcons();
+  addEventListener('resize', sizeHeaderIcons);
+  addEventListener('orientationchange', sizeHeaderIcons);
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
   const overlay = document.getElementById('overlay');
