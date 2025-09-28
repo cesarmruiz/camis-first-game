@@ -82,7 +82,17 @@
           <option value="32">32</option>
           <option value="36">36</option>
         </select></div>
-        <div><label><input type="checkbox" id="tiltCtrl"> Tilt controls (mobile)</label></div>
+        <div><label><input type="checkbox" id="tiltCtrl" value="true"> Tilt controls (mobile)</label></div>
+        <div>
+          <label> Tilt sensitivity (deg):
+            <input type="number" id="tiltDeg" min="1" max="60" step="1" value="5" style="width:72px">
+          </label>
+        </div>
+        <div>
+          <label> Tilt update (ms):
+            <input type="number" id="tiltInterval" min="50" max="1000" step="10" value="100" style="width:72px">
+          </label>
+        </div>
         
       </div>
     </div>
@@ -323,8 +333,8 @@
   let tiltEnabled = false;
   let lastTiltAt = 0;
   let lastTiltDir = { x: 0, y: 0 };
-  const TILT_DEG = 15; // sensitivity threshold in degrees
-  const TILT_INTERVAL = 120; // ms between direction updates
+  let tiltDeg = 5; // sensitivity threshold in degrees
+  let tiltInterval = 100; // ms between direction updates
 
   async function ensureOrientationPermission() {
     try {
@@ -339,10 +349,10 @@
   function pickTiltDirection(beta, gamma) {
     const absB = Math.abs(beta);
     const absG = Math.abs(gamma);
-    if (absG >= absB && absG > TILT_DEG) {
+    if (absG >= absB && absG > tiltDeg) {
       return gamma > 0 ? { x: 1, y: 0 } : { x: -1, y: 0 };
     }
-    if (absB > TILT_DEG) {
+    if (absB > tiltDeg) {
       return beta < 0 ? { x: 0, y: -1 } : { x: 0, y: 1 };
     }
     return null;
@@ -351,7 +361,7 @@
   function onDeviceOrientation(e) {
     if (!tiltEnabled) return;
     const now = performance.now();
-    if (now - lastTiltAt < TILT_INTERVAL) return;
+    if (now - lastTiltAt < tiltInterval) return;
     const beta = e.beta ?? 0;  // front/back (negative = forward)
     const gamma = e.gamma ?? 0; // left/right
     const d = pickTiltDirection(beta, gamma);
@@ -384,6 +394,26 @@
   if (tiltChk) {
     tiltChk.addEventListener('change', () => setTiltEnabled(tiltChk.checked));
   }
+
+  // Tilt settings controls
+  const tiltDegInput = document.getElementById('tiltDeg');
+  const tiltIntervalInput = document.getElementById('tiltInterval');
+  if (tiltDegInput) tiltDegInput.value = String(tiltDeg);
+  if (tiltIntervalInput) tiltIntervalInput.value = String(tiltInterval);
+  if (tiltDegInput) tiltDegInput.addEventListener('change', () => {
+    const v = Math.round(Number(tiltDegInput.value));
+    if (!Number.isFinite(v)) return;
+    tiltDeg = Math.min(60, Math.max(1, v));
+    tiltDegInput.value = String(tiltDeg);
+    gaEvent('tilt_sensitivity_change', { value: tiltDeg });
+  });
+  if (tiltIntervalInput) tiltIntervalInput.addEventListener('change', () => {
+    const v = Math.round(Number(tiltIntervalInput.value));
+    if (!Number.isFinite(v)) return;
+    tiltInterval = Math.min(1000, Math.max(50, v));
+    tiltIntervalInput.value = String(tiltInterval);
+    gaEvent('tilt_interval_change', { value: tiltInterval });
+  });
 
   function togglePause() {
     if (gameOver) reset();
