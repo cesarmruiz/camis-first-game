@@ -4,6 +4,15 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Ruiz-Martinez Snake</title>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-KL7J67VKQ2"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-KL7J67VKQ2');
+  </script>
   <style>
     :root { --bg: #0e0f13; --fg: #e6e6e6; --accent: #66e59b; --accent2:#6cc6ff; }
     html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Arial, "Noto Sans"; }
@@ -87,6 +96,13 @@
   const btnReset = document.getElementById('btnReset');
   const btnSettings = document.getElementById('btnSettings');
   const settingsPanel = document.getElementById('panel');
+  
+  // Analytics helper (works only if GA snippet loaded)
+  function gaEvent(name, params = {}) {
+    if (typeof window.gtag === 'function') {
+      try { window.gtag('event', name, params); } catch (e) {}
+    }
+  }
   const modeSel = document.getElementById('mode');
   const speedSel = document.getElementById('speed');
   const gridSel = document.getElementById('grid');
@@ -201,6 +217,7 @@
     snake.unshift({x:nx, y:ny});
     if (nx === apple.x && ny === apple.y) {
       score += 10; best = Math.max(best, score); localStorage.setItem(BEST_KEY, String(best));
+      gaEvent('apple_collected', { score, best });
       grow += 1; placeApple(); updateHUD();
     }
     if (grow > 0) { grow--; } else { snake.pop(); }
@@ -208,6 +225,7 @@
 
   function doGameOver() {
     gameOver = true; gamePaused = true;
+    gaEvent('game_over', { score, best });
     drawSplash(`Game Over — score ${score}. Press Reset or Start.`);
   }
 
@@ -237,7 +255,7 @@
   // UI
   let gamePaused = true; // start paused
   btnStart.onclick = () => togglePause();
-  btnReset.onclick = () => reset();
+  btnReset.onclick = () => { gaEvent('game_reset'); reset(); };
   btnSettings.onclick = (e) => {
     e.stopPropagation();
     const isHidden = settingsPanel.hasAttribute('hidden');
@@ -258,13 +276,19 @@
       settingsPanel.setAttribute('hidden', '');
     }
   });
-  modeSel.onchange = () => { wrapMode = modeSel.value === 'wrap'; };
-  speedSel.onchange = () => { tickPerSec = Number(speedSel.value); };
-  gridSel.onchange = () => { reset(); };
+  modeSel.onchange = () => { wrapMode = modeSel.value === 'wrap'; gaEvent('mode_change', { mode: wrapMode ? 'wrap' : 'walls' }); };
+  speedSel.onchange = () => { tickPerSec = Number(speedSel.value); gaEvent('speed_change', { value: tickPerSec }); };
+  gridSel.onchange = () => { gaEvent('grid_change', { value: Number(gridSel.value) }); reset(); };
 
   function togglePause() {
     if (gameOver) reset();
+    const wasPaused = gamePaused;
     gamePaused = !gamePaused; gamePaused ? drawSplash('Paused') : hideSplash();
+    if (wasPaused && !gamePaused) {
+      gaEvent('game_resumed');
+    } else if (!wasPaused && gamePaused) {
+      gaEvent('game_paused');
+    }
   }
 
   // Main loop
