@@ -29,17 +29,17 @@
     }
     #app { height: 100%; display: grid; grid-template-rows: auto 1fr auto; }
     header, footer { display:flex; align-items:center; justify-content:space-between; padding: 8px 12px; }
-    header { position: relative }
+    header { position: relative; display:grid; grid-template-columns: 1fr 1fr 1fr; align-items:center }
     header h1 { font-size: 16px; margin: 0; font-weight: 600; letter-spacing:.3px }
-    header .btns { display:flex; gap:8px; position:relative }
+    header .btns { display:flex; gap:8px; position:relative; justify-content:end }
     /* Settings icon button fills header height */
     .icon-btn { padding:0; display:inline-flex; align-items:center; justify-content:center }
     .icon-btn img { display:block; height:100%; aspect-ratio:1/1 }
     button, select { background:#1a1d25; color:var(--fg); border:1px solid #2a2f3a; padding:8px 10px; border-radius:10px; cursor:pointer }
     button:hover { border-color:#3b4352 }
     .accent { color: var(--accent) }
-    /* Centered score in header */
-    .header-center { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); pointer-events:none; font-weight:600 }
+    /* Center area in header */
+    .header-center { justify-self:center; text-align:center; font-weight:600 }
     .header-center .score { color: var(--accent) }
     .header-center .best { color: var(--accent2) }
 
